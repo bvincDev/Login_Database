@@ -28,14 +28,13 @@ def load_credentials():
         return {} # empty disctionary if none is found
 
 def login(username, password):
-    # login if credentials exist
     credentials = load_credentials()
-    
-    for user in credentials.values():
+    # Loop through the credentials, keeping the key so we can update the user record later
+    for user_key, user in credentials.items():
         if user["username"] == username and verify_password(user["password"], password):
-            messagebox.showinfo("Success", "Login successful!")
+            # Login successful: show the pineapple question UI instead of a messagebox
+            show_pineapple_question(user_key, credentials)
             return
-    
     messagebox.showerror("Error", "Invalid username or password.")
 
 def save_credentials(username, password):
@@ -64,20 +63,86 @@ def on_login():
     password = entry_password.get()
     login(username, password)
 
-# GUI setup
-root = tk.Tk()
-root.title("Login System")
-root.geometry("300x200")
+def show_pineapple_question(user_key, credentials):
+    """
+    Clears the login UI and builds a new interface that asks
+    "Do you like pineapple on pizza?" with radio buttons for Yes/No.
+    """
+    # Clear all widgets in the frame
+    for widget in frame.winfo_children():
+        widget.destroy()
 
-tk.Label(root, text="Username:").pack()
-entry_username = tk.Entry(root)
-entry_username.pack()
+    # Create a label for the question
+    label = tk.Label(frame, text="Do you like pineapple on pizza?", font=("Arial", 14), bg="#f2f2f2")
+    label.pack(pady=10)
 
-tk.Label(root, text="Password:").pack()
-entry_password = tk.Entry(root, show="*")
-entry_password.pack()
+    # Create an IntVar to hold the radio button selection (1 for Yes, 0 for No)
+    pineapple_var = tk.IntVar(value=-1)  # -1 indicates no selection yet
 
-tk.Button(root, text="Login", command=on_login).pack()
-tk.Button(root, text="Sign Up", command=on_signup).pack()
+    # Create the radio buttons
+    radio_yes = tk.Radiobutton(frame, text="Yes", variable=pineapple_var, value=1,
+                               font=("Arial", 14), bg="#f2f2f2")
+    radio_no = tk.Radiobutton(frame, text="No", variable=pineapple_var, value=0,
+                              font=("Arial", 14), bg="#f2f2f2")
+    radio_yes.pack(pady=5)
+    radio_no.pack(pady=5)
 
-root.mainloop()
+    # Create a submit button that calls pineapple_submit with the user key and credentials dictionary
+    submit_button = tk.Button(frame, text="Submit", font=("Arial", 14),
+                              bg="#4CAF50", fg="white", width=15,
+                              command=lambda: pineapple_submit(user_key, pineapple_var, credentials))
+    submit_button.pack(pady=10)
+
+def pineapple_submit(user_key, pineapple_var, credentials):
+    """
+    Called when the user submits their pineapple preference.
+    Updates the user record in the JSON file with the selection.
+    """
+    selection = pineapple_var.get()
+    if selection not in (0, 1):
+        messagebox.showerror("Error", "Please select an option.")
+        return
+
+    # Store the preference in the user’s record as a boolean
+    credentials[user_key]["decision"] = True if selection == 1 else False
+
+    # Write the updated credentials back to the JSON file
+    with FILE_PATH.open("w") as file:
+        json.dump(credentials, file, indent=4)
+
+    messagebox.showinfo("Preference Saved", "Your preference has been saved!")
+
+    # (Optional) Clear the frame or show a final message
+    for widget in frame.winfo_children():
+        widget.destroy()
+    final_label = tk.Label(frame, text="Thank you!", font=("Arial", 14), bg="#f2f2f2")
+    final_label.pack(pady=20)
+
+
+# GUI Setup
+window = tk.Tk()
+window.title("Login System")
+
+# Fullscreen mode
+window.attributes('-fullscreen', True)
+window.bind("<Escape>", lambda event: window.attributes('-fullscreen', False), window.geometry("600x400"))  # Press esc to exit full screen and adjust window size
+
+# # Windowed-fullscreen mode
+# window.geometry("{}x{}+0+0". format(window.winfo_screenwidth(), window.winfo_screenheight()))
+
+# Center Frame for UI
+frame = tk.Frame(window, padx=40, pady=40, bg="#f2f2f2")
+frame.place(relx=0.5, rely=0.5, anchor="center")
+
+tk.Label(frame, text="Username:", font=("Arial", 14), bg="#f2f2f2").pack(pady=5)
+entry_username = tk.Entry(frame, font=("Arial", 14), width=20, bd=2, relief="solid")
+entry_username.pack(pady=5)
+
+tk.Label(frame, text="Password:", font=("Arial", 14), bg="#f2f2f2").pack(pady=5)
+entry_password = tk.Entry(frame, show="*", font=("Arial", 14), width=20, bd=2, relief="solid")
+entry_password.pack(pady=5)
+
+tk.Button(frame, text="Login", command=on_login, font=("Arial", 14), bg="#4CAF50", fg="white", width=15).pack(pady=10)
+tk.Button(frame, text="Sign Up", command=on_signup, font=("Arial", 14), bg="#008CBA", fg="white", width=15).pack(pady=5)
+
+window.mainloop()

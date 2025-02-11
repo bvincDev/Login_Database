@@ -2,5 +2,14 @@
     "1": {
         "username": "MyUsername",
         "password": "$2b$12$mCbgOCCTUdQEA6PjZYTP0uJZlp6JFR6G05XwlonKB9LmvmyZbMpNe"
+    },
+    "2": {
+        "username": "john",
+        "password": "$2b$12$JAi7jf7X3dxbllLR0BMFCODQ6DjO31VF2Hcn4pVFbv5Zdc3JehJc6"
+    },
+    "3": {
+        "username": "Billy",
+        "password": "$2b$12$q1ahqu8xrDfaz.ktNOiRTewPmSHIovyk7uAnvwuPBsEEQBnD8knq6",
+        "pineapple": false
     }
 }
