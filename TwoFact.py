@@ -1,6 +1,8 @@
 import json
 import bcrypt
 from pathlib import Path
+import tkinter as tk
+from tkinter import messagebox
 
 # directory of the current script and the file path
 SCRIPT_DIR = Path(__file__).parent
@@ -25,56 +27,57 @@ def load_credentials():
     except (FileNotFoundError, json.JSONDecodeError):
         return {} # empty disctionary if none is found
 
-def login():
+def login(username, password):
     # login if credentials exist
     credentials = load_credentials()
-    if not credentials:
-        print("No saved credentials found. Please sign up first.")
-        return
     
-    curUsername = input("Enter your username: ")
-    curPassword = input("Enter your password: ")
-
-    # Search through the dictionary values for the username and verify password
-    for key, user in credentials.items():
-        if user["username"] == curUsername and verify_password(user["password"], curPassword):
-            print("Login successful!")
+    for user in credentials.values():
+        if user["username"] == username and verify_password(user["password"], password):
+            messagebox.showinfo("Success", "Login successful!")
             return
-
-def save_credentials():
-    username = input("Enter your username: ")
-    password = input("Enter your password: ")
-
-    credentials = load_credentials()  # load existing credentials
-
-    if credentials:
-        primary_key = str(max(map(int, credentials.keys())) + 1) # add unique primary key to everyone
-    else:
-        primary_key = "1"
-
     
-    if username in credentials:
-        print("Error: Username already exists. Please choose a different one.")
+    messagebox.showerror("Error", "Invalid username or password.")
+
+def save_credentials(username, password):
+    credentials = load_credentials()
+    
+    if any(user["username"] == username for user in credentials.values()):
+        messagebox.showerror("Error", "Username already exists. Please choose a different one.")
         return
 
-    credentials[primary_key] = {
-        "username": username,
-        "password": hash_password(password)  # Store hashed password
-    }
+    primary_key = str(max(map(int, credentials.keys())) + 1) if credentials else "1" # add unique primary key to everyone
+    credentials[primary_key] = {"username": username, "password": hash_password(password)}
     
-
     with FILE_PATH.open("w") as file:
         json.dump(credentials, file, indent=4)
-
-    print("Credentials saved securely!")
-
-# example usage
-while True:
-    choice = input("Do you want to [L]ogin or [S]ign up? (L/S): ").strip().lower()
     
-    if choice == "l":
-        login()
-    elif choice == "s":
-        save_credentials()
-    else:
-        print("Invalid choice. Please enter 'L' to login or 'S' to sign up.")
+    messagebox.showinfo("Success", "Account created successfully!")
+
+
+def on_signup():
+    username = entry_username.get()
+    password = entry_password.get()
+    save_credentials(username, password)
+
+def on_login():
+    username = entry_username.get()
+    password = entry_password.get()
+    login(username, password)
+
+# GUI setup
+root = tk.Tk()
+root.title("Login System")
+root.geometry("300x200")
+
+tk.Label(root, text="Username:").pack()
+entry_username = tk.Entry(root)
+entry_username.pack()
+
+tk.Label(root, text="Password:").pack()
+entry_password = tk.Entry(root, show="*")
+entry_password.pack()
+
+tk.Button(root, text="Login", command=on_login).pack()
+tk.Button(root, text="Sign Up", command=on_signup).pack()
+
+root.mainloop()
