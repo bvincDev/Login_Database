@@ -1,12 +1,27 @@
 import json
 import bcrypt
 from pathlib import Path
+import sqlite3
 import tkinter as tk
 from tkinter import ttk, messagebox
 
 # directory of the current script and the file path
 SCRIPT_DIR = Path(__file__).parent
 FILE_PATH = SCRIPT_DIR / "data\info.json"
+
+# Connect to SQLite database
+conn = sqlite3.connect("database.db")
+cursor = conn.cursor()
+
+# create a table if it doesn't exist
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL
+    )
+''')
+conn.commit()
 
 
 def hash_password(password):
@@ -28,30 +43,23 @@ def load_credentials():
         return {} # empty disctionary if none is found
 
 def login(username, password):
-    credentials = load_credentials()
-    # Loop through the credentials, keeping the key so we can update the user record later
-    for user_key, user in credentials.items():
-        if user["username"] == username and verify_password(user["password"], password):
-            # Login successful: show the pineapple question UI instead of a messagebox
-            show_pineapple_question(user_key, credentials)
-            return
-    messagebox.showerror("Error", "Invalid username or password.")
+    cursor.execute("SELECT id, password FROM users WHERE username = ?", (username,))
+    user = cursor.fetchone()
+    
+    if user and verify_password(user[1], password):
+        user_id = user[0]
+        show_pineapple_question(user_id)
+    else:
+        messagebox.showerror("Error", "Invalid username or password.")
 
 def save_credentials(username, password):
-    credentials = load_credentials()
-    
-    if any(user["username"] == username for user in credentials.values()):
+    hashed = hash_password(password)
+    try:
+        cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hashed))
+        conn.commit()
+        messagebox.showinfo("Success", "Account created successfully!")
+    except sqlite3.IntegrityError:
         messagebox.showerror("Error", "Username already exists. Please choose a different one.")
-        return
-
-    primary_key = str(max(map(int, credentials.keys())) + 1) if credentials else "1" # add unique primary key to everyone
-    credentials[primary_key] = {"username": username, "password": hash_password(password)}
-    
-    with FILE_PATH.open("w") as file:
-        json.dump(credentials, file, indent=4)
-    
-    messagebox.showinfo("Success", "Account created successfully!")
-
 
 def on_signup():
     username = entry_username.get()
@@ -63,67 +71,51 @@ def on_login():
     password = entry_password.get()
     login(username, password)
 
+def on_closing():
+    conn.close()
+    window.destroy()
 
-def show_pineapple_question(user_key, credentials):
-    for widget in content_frame.winfo_children():
+def show_pineapple_question(user_id):
+    for widget in frame.winfo_children():
         widget.destroy()
-    ttk.Label(content_frame, text="Do you like pineapple on pizza?", style="Heading.TLabel").pack(pady=10)
-    
+    ttk.Label(frame, text="Do you like pineapple on pizza?", font=("Arial", 14)).pack(pady=10)
     pineapple_var = tk.IntVar(value=-1)
-    ttk.Radiobutton(content_frame, text="Yes", variable=pineapple_var, value=1, style="TRadiobutton").pack(pady=5)
-    ttk.Radiobutton(content_frame, text="No", variable=pineapple_var, value=0, style="TRadiobutton").pack(pady=5)
-    ttk.Button(content_frame, text="Submit", command=lambda: pineapple_submit(user_key, pineapple_var, credentials),
-               style="TButton").pack(pady=10)
+    ttk.Radiobutton(frame, text="Yes", variable=pineapple_var, value=1).pack(pady=5)
+    ttk.Radiobutton(frame, text="No", variable=pineapple_var, value=0).pack(pady=5)
+    ttk.Button(frame, text="Submit", command=lambda: pineapple_submit(user_id, pineapple_var)).pack(pady=10)
 
-def pineapple_submit(user_key, pineapple_var, credentials):
+def pineapple_submit(user_id, pineapple_var):
     selection = pineapple_var.get()
     if selection not in (0, 1):
         messagebox.showerror("Error", "Please select an option.")
         return
-    credentials[user_key]["decision"] = (selection == 1)
-    with FILE_PATH.open("w") as file:
-        json.dump(credentials, file, indent=4)
+    # Here you could update the user's decision in the database if needed.
+    # For example, add a new column to the table and update it.
     messagebox.showinfo("Preference Saved", "Your preference has been saved!")
-    for widget in content_frame.winfo_children():
+    for widget in frame.winfo_children():
         widget.destroy()
-    ttk.Label(content_frame, text="Thank you!", style="Heading.TLabel").pack(pady=20)
+    ttk.Label(frame, text="Thank you!", font=("Arial", 14)).pack(pady=20)
 
 # GUI Setup
 window = tk.Tk()
 window.title("Modern Login System")
 window.geometry("500x400")
 window.resizable(False, False)
-window.configure(bg="#2c3e50")  # Dark background for the window
 
-# Use the "clam" theme for a modern look
-style = ttk.Style(window)
-style.theme_use("clam")
+frame = ttk.Frame(window, padding=30)
+frame.pack(expand=True)
 
-# Configure widget styles for a sleek, modern design
-style.configure("TFrame", background="#2c3e50")
-style.configure("TLabel", background="#2c3e50", foreground="#ecf0f1", font=("Segoe UI", 12))
-style.configure("Heading.TLabel", background="#2c3e50", foreground="#ecf0f1", font=("Segoe UI", 16, "bold"))
-style.configure("TButton", font=("Segoe UI", 12), padding=10, background="#34495e", foreground="#ecf0f1")
-style.map("TButton", background=[("active", "#3d566e")])
-style.configure("TEntry", font=("Segoe UI", 12), padding=5)
-style.configure("TRadiobutton", background="#2c3e50", foreground="#ecf0f1", font=("Segoe UI", 12))
+ttk.Label(frame, text="Username:").pack(pady=5)
+entry_username = ttk.Entry(frame)
+entry_username.pack(pady=5)
 
-# Main content frame
-content_frame = ttk.Frame(window, padding=30, style="TFrame")
-content_frame.pack(expand=True)
+ttk.Label(frame, text="Password:").pack(pady=5)
+entry_password = ttk.Entry(frame, show="*")
+entry_password.pack(pady=5)
 
-# Username field
-ttk.Label(content_frame, text="Username:").pack(pady=(0, 5))
-entry_username = ttk.Entry(content_frame, width=30, style="TEntry")
-entry_username.pack(pady=(0, 10))
+ttk.Button(frame, text="Login", command=on_login).pack(pady=10)
+ttk.Button(frame, text="Sign Up", command=on_signup).pack(pady=5)
 
-# Password field
-ttk.Label(content_frame, text="Password:").pack(pady=(0, 5))
-entry_password = ttk.Entry(content_frame, show="*", width=30, style="TEntry")
-entry_password.pack(pady=(0, 10))
-
-# Buttons
-ttk.Button(content_frame, text="Login", command=on_login, style="TButton").pack(pady=10)
-ttk.Button(content_frame, text="Sign Up", command=on_signup, style="TButton").pack(pady=5)
+window.protocol("WM_DELETE_WINDOW", on_closing)
 
 window.mainloop()
