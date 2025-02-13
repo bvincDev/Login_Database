@@ -2,7 +2,7 @@ import json
 import bcrypt
 from pathlib import Path
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import ttk, messagebox
 
 # directory of the current script and the file path
 SCRIPT_DIR = Path(__file__).parent
@@ -63,86 +63,67 @@ def on_login():
     password = entry_password.get()
     login(username, password)
 
+
 def show_pineapple_question(user_key, credentials):
-    """
-    Clears the login UI and builds a new interface that asks
-    "Do you like pineapple on pizza?" with radio buttons for Yes/No.
-    """
-    # Clear all widgets in the frame
-    for widget in frame.winfo_children():
+    for widget in content_frame.winfo_children():
         widget.destroy()
-
-    # Create a label for the question
-    label = tk.Label(frame, text="Do you like pineapple on pizza?", font=("Arial", 14), bg="#f2f2f2")
-    label.pack(pady=10)
-
-    # Create an IntVar to hold the radio button selection (1 for Yes, 0 for No)
-    pineapple_var = tk.IntVar(value=-1)  # -1 indicates no selection yet
-
-    # Create the radio buttons
-    radio_yes = tk.Radiobutton(frame, text="Yes", variable=pineapple_var, value=1,
-                               font=("Arial", 14), bg="#f2f2f2")
-    radio_no = tk.Radiobutton(frame, text="No", variable=pineapple_var, value=0,
-                              font=("Arial", 14), bg="#f2f2f2")
-    radio_yes.pack(pady=5)
-    radio_no.pack(pady=5)
-
-    # Create a submit button that calls pineapple_submit with the user key and credentials dictionary
-    submit_button = tk.Button(frame, text="Submit", font=("Arial", 14),
-                              bg="#4CAF50", fg="white", width=15,
-                              command=lambda: pineapple_submit(user_key, pineapple_var, credentials))
-    submit_button.pack(pady=10)
+    ttk.Label(content_frame, text="Do you like pineapple on pizza?", style="Heading.TLabel").pack(pady=10)
+    
+    pineapple_var = tk.IntVar(value=-1)
+    ttk.Radiobutton(content_frame, text="Yes", variable=pineapple_var, value=1, style="TRadiobutton").pack(pady=5)
+    ttk.Radiobutton(content_frame, text="No", variable=pineapple_var, value=0, style="TRadiobutton").pack(pady=5)
+    ttk.Button(content_frame, text="Submit", command=lambda: pineapple_submit(user_key, pineapple_var, credentials),
+               style="TButton").pack(pady=10)
 
 def pineapple_submit(user_key, pineapple_var, credentials):
-    """
-    Called when the user submits their pineapple preference.
-    Updates the user record in the JSON file with the selection.
-    """
     selection = pineapple_var.get()
     if selection not in (0, 1):
         messagebox.showerror("Error", "Please select an option.")
         return
-
-    # Store the preference in the user’s record as a boolean
-    credentials[user_key]["decision"] = True if selection == 1 else False
-
-    # Write the updated credentials back to the JSON file
+    credentials[user_key]["decision"] = (selection == 1)
     with FILE_PATH.open("w") as file:
         json.dump(credentials, file, indent=4)
-
     messagebox.showinfo("Preference Saved", "Your preference has been saved!")
-
-    # (Optional) Clear the frame or show a final message
-    for widget in frame.winfo_children():
+    for widget in content_frame.winfo_children():
         widget.destroy()
-    final_label = tk.Label(frame, text="Thank you!", font=("Arial", 14), bg="#f2f2f2")
-    final_label.pack(pady=20)
-
+    ttk.Label(content_frame, text="Thank you!", style="Heading.TLabel").pack(pady=20)
 
 # GUI Setup
 window = tk.Tk()
-window.title("Login System")
+window.title("Modern Login System")
+window.geometry("500x400")
+window.resizable(False, False)
+window.configure(bg="#2c3e50")  # Dark background for the window
 
-# Fullscreen mode
-window.attributes('-fullscreen', True)
-window.bind("<Escape>", lambda event: window.attributes('-fullscreen', False), window.geometry("600x400"))  # Press esc to exit full screen and adjust window size
+# Use the "clam" theme for a modern look
+style = ttk.Style(window)
+style.theme_use("clam")
 
-# # Windowed-fullscreen mode
-# window.geometry("{}x{}+0+0". format(window.winfo_screenwidth(), window.winfo_screenheight()))
+# Configure widget styles for a sleek, modern design
+style.configure("TFrame", background="#2c3e50")
+style.configure("TLabel", background="#2c3e50", foreground="#ecf0f1", font=("Segoe UI", 12))
+style.configure("Heading.TLabel", background="#2c3e50", foreground="#ecf0f1", font=("Segoe UI", 16, "bold"))
+style.configure("TButton", font=("Segoe UI", 12), padding=10, background="#34495e", foreground="#ecf0f1")
+style.map("TButton", background=[("active", "#3d566e")])
+style.configure("TEntry", font=("Segoe UI", 12), padding=5)
+style.configure("TRadiobutton", background="#2c3e50", foreground="#ecf0f1", font=("Segoe UI", 12))
 
-# Center Frame for UI
-frame = tk.Frame(window, padx=40, pady=40, bg="#f2f2f2")
-frame.place(relx=0.5, rely=0.5, anchor="center")
+# Main content frame
+content_frame = ttk.Frame(window, padding=30, style="TFrame")
+content_frame.pack(expand=True)
 
-tk.Label(frame, text="Username:", font=("Arial", 14), bg="#f2f2f2").pack(pady=5)
-entry_username = tk.Entry(frame, font=("Arial", 14), width=20, bd=2, relief="solid")
-entry_username.pack(pady=5)
+# Username field
+ttk.Label(content_frame, text="Username:").pack(pady=(0, 5))
+entry_username = ttk.Entry(content_frame, width=30, style="TEntry")
+entry_username.pack(pady=(0, 10))
 
-tk.Label(frame, text="Password:", font=("Arial", 14), bg="#f2f2f2").pack(pady=5)
-entry_password = tk.Entry(frame, show="*", font=("Arial", 14), width=20, bd=2, relief="solid")
-entry_password.pack(pady=5)
+# Password field
+ttk.Label(content_frame, text="Password:").pack(pady=(0, 5))
+entry_password = ttk.Entry(content_frame, show="*", width=30, style="TEntry")
+entry_password.pack(pady=(0, 10))
 
-tk.Button(frame, text="Login", command=on_login, font=("Arial", 14), bg="#4CAF50", fg="white", width=15).pack(pady=10)
-tk.Button(frame, text="Sign Up", command=on_signup, font=("Arial", 14), bg="#008CBA", fg="white", width=15).pack(pady=5)
+# Buttons
+ttk.Button(content_frame, text="Login", command=on_login, style="TButton").pack(pady=10)
+ttk.Button(content_frame, text="Sign Up", command=on_signup, style="TButton").pack(pady=5)
 
 window.mainloop()

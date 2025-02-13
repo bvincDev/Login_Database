@@ -1,15 +1,12 @@
 {
     "1": {
-        "username": "MyUsername",
-        "password": "$2b$12$mCbgOCCTUdQEA6PjZYTP0uJZlp6JFR6G05XwlonKB9LmvmyZbMpNe"
+        "username": "test",
+        "password": "$2b$12$LK2GsscmFSmCWj2Se3KThOEljIWoIk8T8pr1XYMWnxTRwHFA6Smb.",
+        "decision": false
     },
     "2": {
         "username": "john",
-        "password": "$2b$12$JAi7jf7X3dxbllLR0BMFCODQ6DjO31VF2Hcn4pVFbv5Zdc3JehJc6"
-    },
-    "3": {
-        "username": "Billy",
-        "password": "$2b$12$q1ahqu8xrDfaz.ktNOiRTewPmSHIovyk7uAnvwuPBsEEQBnD8knq6",
-        "pineapple": false
+        "password": "$2b$12$4B.2GPm3PsgTmZXlVFd3FeIf6j7eZcduqXOsAtrTTp6UgWPbFZInO",
+        "decision": false
     }
 }
