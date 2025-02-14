@@ -5,6 +5,9 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import ttk, messagebox
 
+
+"""pyinstaller --onefile your_script.py     to create executable"""
+
 # ---------------------------
 # Password hashing functions
 # ---------------------------
@@ -24,7 +27,7 @@ def get_connection():
     return mysql.connector.connect(
         host="localhost",
         user="bvincDev",           # Your MySQL username
-        password="Guilliaum5!",  # Your MySQL password
+        password="",  # Your MySQL password
         database="infoDB" 
     )
 
