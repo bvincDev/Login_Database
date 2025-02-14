@@ -1,66 +1,94 @@
 import json
 import bcrypt
+import mysql.connector
 from pathlib import Path
-import sqlite3
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-# directory of the current script and the file path
-SCRIPT_DIR = Path(__file__).parent
-FILE_PATH = SCRIPT_DIR / "data\info.json"
-
-# Connect to SQLite database
-conn = sqlite3.connect("database.db")
-cursor = conn.cursor()
-
-# create a table if it doesn't exist
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL
-    )
-''')
-conn.commit()
-
-
+# ---------------------------
+# Password hashing functions
+# ---------------------------
 def hash_password(password):
-    # use bcrypt to hash password
     salt = bcrypt.gensalt()
     hashed = bcrypt.hashpw(password.encode(), salt)
     return hashed.decode()
 
 def verify_password(stored_hash, password):
-    # verify the password against the already stored
     return bcrypt.checkpw(password.encode(), stored_hash.encode())
 
-def load_credentials():
-    # load credentials from json if file found
-    try:
-        with FILE_PATH.open("r") as file:
-            return json.load(file)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {} # empty disctionary if none is found
+# ---------------------------
+# Database connection helpers
+# ---------------------------
+def get_connection():
+    # Update these parameters with your MySQL configuration
+    return mysql.connector.connect(
+        host="localhost",
+        user="bvincDev",           # Your MySQL username
+        password="Guilliaum5!",  # Your MySQL password
+        database="infoDB" 
+    )
 
+def initialize_db():
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                username VARCHAR(255) UNIQUE NOT NULL,
+                password VARCHAR(255) NOT NULL,
+                decision BOOLEAN
+            )
+        """)
+        conn.commit()
+    except mysql.connector.Error as err:
+        messagebox.showerror("Database Error", f"Error initializing database: {err}")
+    finally:
+        cursor.close()
+        conn.close()
+
+# ---------------------------
+# User authentication functions
+# ---------------------------
 def login(username, password):
-    cursor.execute("SELECT id, password FROM users WHERE username = ?", (username,))
-    user = cursor.fetchone()
-    
-    if user and verify_password(user[1], password):
-        user_id = user[0]
-        show_pineapple_question(user_id)
-    else:
-        messagebox.showerror("Error", "Invalid username or password.")
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM users WHERE username=%s", (username,))
+        user = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        if user is None or not verify_password(user["password"], password):
+            messagebox.showerror("Error", "Invalid username or password.")
+            return
+        # If login is successful, show the pineapple question UI
+        show_pineapple_question(user["id"])
+    except mysql.connector.Error as err:
+        messagebox.showerror("Database Error", f"Error: {err}")
 
 def save_credentials(username, password):
     hashed = hash_password(password)
     try:
-        cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hashed))
+        conn = get_connection()
+        cursor = conn.cursor()
+        # Check if the username already exists
+        cursor.execute("SELECT id FROM users WHERE username=%s", (username,))
+        if cursor.fetchone() is not None:
+            messagebox.showerror("Error", "Username already exists. Please choose a different one.")
+            cursor.close()
+            conn.close()
+            return
+        cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username, hashed))
         conn.commit()
+        cursor.close()
+        conn.close()
         messagebox.showinfo("Success", "Account created successfully!")
-    except sqlite3.IntegrityError:
-        messagebox.showerror("Error", "Username already exists. Please choose a different one.")
+    except mysql.connector.Error as err:
+        messagebox.showerror("Database Error", f"Error: {err}")
 
+# ---------------------------
+# GUI callback functions
+# ---------------------------
 def on_signup():
     username = entry_username.get()
     password = entry_password.get()
@@ -71,51 +99,78 @@ def on_login():
     password = entry_password.get()
     login(username, password)
 
-def on_closing():
-    conn.close()
-    window.destroy()
-
 def show_pineapple_question(user_id):
-    for widget in frame.winfo_children():
+    for widget in content_frame.winfo_children():
         widget.destroy()
-    ttk.Label(frame, text="Do you like pineapple on pizza?", font=("Arial", 14)).pack(pady=10)
+    ttk.Label(content_frame, text="Do you like pineapple on pizza?", style="Heading.TLabel").pack(pady=10)
+    
     pineapple_var = tk.IntVar(value=-1)
-    ttk.Radiobutton(frame, text="Yes", variable=pineapple_var, value=1).pack(pady=5)
-    ttk.Radiobutton(frame, text="No", variable=pineapple_var, value=0).pack(pady=5)
-    ttk.Button(frame, text="Submit", command=lambda: pineapple_submit(user_id, pineapple_var)).pack(pady=10)
+    ttk.Radiobutton(content_frame, text="Yes", variable=pineapple_var, value=1, style="TRadiobutton").pack(pady=5)
+    ttk.Radiobutton(content_frame, text="No", variable=pineapple_var, value=0, style="TRadiobutton").pack(pady=5)
+    ttk.Button(content_frame, text="Submit", command=lambda: pineapple_submit(user_id, pineapple_var),
+               style="TButton").pack(pady=10)
 
 def pineapple_submit(user_id, pineapple_var):
     selection = pineapple_var.get()
     if selection not in (0, 1):
         messagebox.showerror("Error", "Please select an option.")
         return
-    # Here you could update the user's decision in the database if needed.
-    # For example, add a new column to the table and update it.
-    messagebox.showinfo("Preference Saved", "Your preference has been saved!")
-    for widget in frame.winfo_children():
-        widget.destroy()
-    ttk.Label(frame, text="Thank you!", font=("Arial", 14)).pack(pady=20)
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE users SET decision=%s WHERE id=%s", (selection == 1, user_id))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        messagebox.showinfo("Preference Saved", "Your preference has been saved!")
+    except mysql.connector.Error as err:
+        messagebox.showerror("Database Error", f"Error: {err}")
+        return
+    for widget in content_frame.winfo_children():
+         widget.destroy()
+    ttk.Label(content_frame, text="Thank you!", style="Heading.TLabel").pack(pady=20)
 
+# ---------------------------
 # GUI Setup
+# ---------------------------
 window = tk.Tk()
 window.title("Modern Login System")
 window.geometry("500x400")
 window.resizable(False, False)
+window.configure(bg="#2c3e50")
 
-frame = ttk.Frame(window, padding=30)
-frame.pack(expand=True)
+# Use the "clam" theme for a modern look
+style = ttk.Style(window)
+style.theme_use("clam")
 
-ttk.Label(frame, text="Username:").pack(pady=5)
-entry_username = ttk.Entry(frame)
-entry_username.pack(pady=5)
+# Configure widget styles for a sleek, modern design
+style.configure("TFrame", background="#2c3e50")
+style.configure("TLabel", background="#2c3e50", foreground="#ecf0f1", font=("Segoe UI", 12))
+style.configure("Heading.TLabel", background="#2c3e50", foreground="#ecf0f1", font=("Segoe UI", 16, "bold"))
+style.configure("TButton", font=("Segoe UI", 12), padding=10, background="#34495e", foreground="#ecf0f1")
+style.map("TButton", background=[("active", "#3d566e")])
+style.configure("TEntry", font=("Segoe UI", 12), padding=5)
+style.configure("TRadiobutton", background="#2c3e50", foreground="#ecf0f1", font=("Segoe UI", 12))
 
-ttk.Label(frame, text="Password:").pack(pady=5)
-entry_password = ttk.Entry(frame, show="*")
-entry_password.pack(pady=5)
+# Main content frame
+content_frame = ttk.Frame(window, padding=30, style="TFrame")
+content_frame.pack(expand=True)
 
-ttk.Button(frame, text="Login", command=on_login).pack(pady=10)
-ttk.Button(frame, text="Sign Up", command=on_signup).pack(pady=5)
+# Username field
+ttk.Label(content_frame, text="Username:").pack(pady=(0, 5))
+entry_username = ttk.Entry(content_frame, width=30, style="TEntry")
+entry_username.pack(pady=(0, 10))
 
-window.protocol("WM_DELETE_WINDOW", on_closing)
+# Password field
+ttk.Label(content_frame, text="Password:").pack(pady=(0, 5))
+entry_password = ttk.Entry(content_frame, show="*", width=30, style="TEntry")
+entry_password.pack(pady=(0, 10))
+
+# Buttons for Login and Sign Up
+ttk.Button(content_frame, text="Login", command=on_login, style="TButton").pack(pady=10)
+ttk.Button(content_frame, text="Sign Up", command=on_signup, style="TButton").pack(pady=5)
+
+# Initialize the database (creates the table if it doesn't exist)
+initialize_db()
 
 window.mainloop()
