@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QFont
 
+
 #database table set up
 def create_table():
     #create table if one doesn't already exist
@@ -36,45 +37,50 @@ class DashboardWindow(QMainWindow):
         self.setWindowTitle("Dashboard")
         self.setWindowState(Qt.WindowMaximized)
         
-        # Create a central widget with a vertical layout for the menu
+        # vertical menu layout
         central_widget = QWidget(self)
         self.setCentralWidget(central_widget)
         layout = QVBoxLayout(central_widget)
         layout.setAlignment(Qt.AlignCenter)
         
-        # Customize font
         button_font = QFont("Arial", 16, QFont.Bold)
-
-        # Welcome label
-        welcome_label = QLabel("Welcome to Minesweeper!")
+        
+        welcome_label = QLabel("Welcome to Minesweeper")
         welcome_label.setAlignment(Qt.AlignCenter)
         welcome_label.setFont(QFont("Arial", 24, QFont.Bold))  # Increase font size
         layout.addWidget(welcome_label)
         
-        # Play button
+        
         self.play_button = QPushButton("Play")
         self.play_button.setFont(button_font)
-        self.play_button.setFixedSize(250, 60)  
-        layout.addWidget(self.play_button)
+        self.play_button.setFixedSize(250, 60)
+        self.play_button.clicked.connect(self.open_play)  # Connect the play button to open_play method
+        layout.addWidget(self.play_button, 0, Qt.AlignCenter)
         
-        # Options button
+        
         self.options_button = QPushButton("Options")
         self.options_button.setFont(button_font)
         self.options_button.setFixedSize(250, 60)  
-        layout.addWidget(self.options_button)
+        layout.addWidget(self.options_button, 0, Qt.AlignCenter)
         
-        # Leaderboard button
+        
         self.leaderboard_button = QPushButton("Leaderboard")
         self.leaderboard_button.setFont(button_font)
         self.leaderboard_button.setFixedSize(250, 60)  
-        layout.addWidget(self.leaderboard_button)
+        layout.addWidget(self.leaderboard_button, 0, Qt.AlignCenter)
         
-        # Quit button
+        
         self.quit_button = QPushButton("Quit")
         self.quit_button.setFont(button_font)
         self.quit_button.setFixedSize(250, 60)  
-        self.quit_button.setStyleSheet("background-color: red; color: white;")  # Change button color
-        layout.addWidget(self.quit_button)
+        self.quit_button.setStyleSheet("background-color: red; color: white;")
+        layout.addWidget(self.quit_button, 0, Qt.AlignCenter)
+
+    def open_play(self):
+        self.play = PlayWindow()
+        self.play.show()
+        self.close()
+    
 
 class RegistrationDialog(QDialog):
     def __init__(self, parent=None):
@@ -122,6 +128,26 @@ class RegistrationDialog(QDialog):
         finally:
             cursor.close()
             connection.close()
+
+#play window
+class PlayWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Play")
+        self.setWindowState(Qt.WindowMaximized)
+        # vertical menu layout
+        central_widget = QWidget(self)
+        self.setCentralWidget(central_widget)
+        layout = QVBoxLayout(central_widget)
+        layout.setAlignment(Qt.AlignCenter)
+        
+        button_font = QFont("Arial", 16, QFont.Bold)
+        
+        welcome_label = QLabel("Welcome to Minesweeper")
+        welcome_label.setAlignment(Qt.AlignCenter)
+        welcome_label.setFont(QFont("Arial", 24, QFont.Bold))  # Increase font size
+        layout.addWidget(welcome_label)
+        
 
 #login window
 class LoginWindow(QMainWindow):
@@ -178,6 +204,7 @@ class LoginWindow(QMainWindow):
         
         cursor.close()
         connection.close()
+
     
     def open_register(self):
         dialog = RegistrationDialog(self)
@@ -187,6 +214,9 @@ class LoginWindow(QMainWindow):
         self.dashboard = DashboardWindow()
         self.dashboard.show()
         self.close()
+
+    
+
 
 
 if __name__ == '__main__':
