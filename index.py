@@ -1,16 +1,17 @@
 import sys
 import bcrypt
 import mysql.connector
+import random
 from config import get_connection
 
 #gui with PySide
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer, QTime
+
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLineEdit, QPushButton,
-    QVBoxLayout, QDialog, QFormLayout, QLabel, QMessageBox, QSizePolicy
+    QVBoxLayout, QDialog, QFormLayout, QLabel, QMessageBox, QSizePolicy, QGridLayout, QVBoxLayout, QDialog, QComboBox
 )
-from PySide6.QtGui import QFont
-
+from PySide6.QtGui import QFont, QMouseEvent
 
 #database table set up
 def create_table():
@@ -22,7 +23,9 @@ def create_table():
         id INT AUTO_INCREMENT PRIMARY KEY,
         username VARCHAR(50) UNIQUE,
         email VARCHAR(100) UNIQUE,
-        password VARCHAR(100)
+        password VARCHAR(100),
+        wins INT DEFAULT 0,
+        choice VARCHAR(100)
     )
     """
     cursor.execute(create_table_query)
@@ -32,11 +35,11 @@ def create_table():
 
 #after login go to menu
 class DashboardWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, username):
         super().__init__()
+        self.username = username
         self.setWindowTitle("Dashboard")
-        self.setWindowState(Qt.WindowMaximized)
-        
+       
         # vertical menu layout
         central_widget = QWidget(self)
         self.setCentralWidget(central_widget)
@@ -45,30 +48,28 @@ class DashboardWindow(QMainWindow):
         
         button_font = QFont("Arial", 16, QFont.Bold)
         
-        welcome_label = QLabel("Welcome to Minesweeper")
+        welcome_label = QLabel("Welcome!")
         welcome_label.setAlignment(Qt.AlignCenter)
         welcome_label.setFont(QFont("Arial", 24, QFont.Bold))  # Increase font size
         layout.addWidget(welcome_label)
         
+        # First dropdown menu
+        question_label = QLabel("Do you like pineapple on pizza?")
+        question_label.setAlignment(Qt.AlignCenter)
+        question_label.setFont(button_font)
+        layout.addWidget(question_label)
+
+        self.dropdown1 = QComboBox()
+        self.dropdown1.setFont(button_font)
+        self.dropdown1.addItems(["yes", "no"])
+        layout.addWidget(self.dropdown1, 0, Qt.AlignCenter)
         
-        self.play_button = QPushButton("Play")
-        self.play_button.setFont(button_font)
-        self.play_button.setFixedSize(250, 60)
-        self.play_button.clicked.connect(self.open_play)  # Connect the play button to open_play method
-        layout.addWidget(self.play_button, 0, Qt.AlignCenter)
-        
-        
-        self.options_button = QPushButton("Options")
-        self.options_button.setFont(button_font)
-        self.options_button.setFixedSize(250, 60)  
-        layout.addWidget(self.options_button, 0, Qt.AlignCenter)
-        
-        
-        self.leaderboard_button = QPushButton("Leaderboard")
-        self.leaderboard_button.setFont(button_font)
-        self.leaderboard_button.setFixedSize(250, 60)  
-        layout.addWidget(self.leaderboard_button, 0, Qt.AlignCenter)
-        
+        # Submit button
+        self.submit_button = QPushButton("Submit")
+        self.submit_button.setFont(button_font)
+        self.submit_button.setFixedSize(250, 60)
+        self.submit_button.clicked.connect(self.handle_submit)
+        layout.addWidget(self.submit_button, 0, Qt.AlignCenter)
         
         self.quit_button = QPushButton("Quit")
         self.quit_button.setFont(button_font)
@@ -76,10 +77,24 @@ class DashboardWindow(QMainWindow):
         self.quit_button.setStyleSheet("background-color: red; color: white;")
         layout.addWidget(self.quit_button, 0, Qt.AlignCenter)
 
-    def open_play(self):
-        self.play = PlayWindow()
-        self.play.show()
-        self.close()
+    def handle_submit(self):
+        # Handle the submit button click event
+        selected_option1 = self.dropdown1.currentText()
+        
+        try:
+            connection = get_connection()
+            cursor = connection.cursor()
+            update_query = "UPDATE users SET choice = %s WHERE username = %s"
+            cursor.execute(update_query, (selected_option1, self.username))
+            connection.commit()
+            QMessageBox.information(self, "Selected Option", f"Selected: {selected_option1}")
+        except mysql.connector.Error as err:
+            QMessageBox.warning(self, "Error", f"Error: {err}")
+        finally:
+            cursor.close()
+            connection.close()
+
+
     
 
 class RegistrationDialog(QDialog):
@@ -129,24 +144,8 @@ class RegistrationDialog(QDialog):
             cursor.close()
             connection.close()
 
-#play window
-class PlayWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Play")
-        self.setWindowState(Qt.WindowMaximized)
-        # vertical menu layout
-        central_widget = QWidget(self)
-        self.setCentralWidget(central_widget)
-        layout = QVBoxLayout(central_widget)
-        layout.setAlignment(Qt.AlignCenter)
-        
-        button_font = QFont("Arial", 16, QFont.Bold)
-        
-        welcome_label = QLabel("Welcome to Minesweeper")
-        welcome_label.setAlignment(Qt.AlignCenter)
-        welcome_label.setFont(QFont("Arial", 24, QFont.Bold))  # Increase font size
-        layout.addWidget(welcome_label)
+
+
         
 
 #login window
@@ -211,11 +210,9 @@ class LoginWindow(QMainWindow):
         dialog.exec()
     
     def open_dashboard(self):
-        self.dashboard = DashboardWindow()
+        self.dashboard = DashboardWindow(self.username_edit.text().strip())
         self.dashboard.show()
         self.close()
-
-    
 
 
 
